@@ -1,8 +1,10 @@
+import calendar
 import os
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
 from database import queries
@@ -126,9 +128,65 @@ def _build_user_ctx(user):
     return {**user, "initials": initials}
 
 
+# ==== SECTION: date filter ==== #
+
+def _today():
+    return datetime.now(ZoneInfo("Asia/Kolkata")).date()
+
+
+def _months_back(d, n):
+    index = d.year * 12 + (d.month - 1) - n
+    year, month_zero = divmod(index, 12)
+    day = min(d.day, calendar.monthrange(year, month_zero + 1)[1])
+    return date(year, month_zero + 1, day)
+
+
+def _build_presets(today):
+    end = today.isoformat()
+    return [
+        {"key": "this_month", "label": "This Month",
+         "params": {"date_from": today.replace(day=1).isoformat(), "date_to": end}},
+        {"key": "last_3", "label": "Last 3 Months",
+         "params": {"date_from": _months_back(today, 3).isoformat(), "date_to": end}},
+        {"key": "last_6", "label": "Last 6 Months",
+         "params": {"date_from": _months_back(today, 6).isoformat(), "date_to": end}},
+        {"key": "all", "label": "All Time", "params": {}},
+    ]
+
+
+def _parse_date_param(raw):
+    try:
+        return datetime.strptime((raw or "").strip(), "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return None
+
+
+def _resolve_date_filter(args):
+    """Return (date_from, date_to, error); both dates must be valid to filter."""
+    date_from = _parse_date_param(args.get("date_from"))
+    date_to = _parse_date_param(args.get("date_to"))
+    if not date_from or not date_to:
+        return None, None, None
+    if date_from > date_to:
+        return None, None, "Start date must be before end date."
+    return date_from, date_to, None
+
+
+def _active_filter(date_from, date_to, presets):
+    if not (date_from and date_to):
+        return "all"
+    for preset in presets:
+        if preset["params"] == {"date_from": date_from, "date_to": date_to}:
+            return preset["key"]
+    return "custom"
+
+
+# ==== END SECTION: date filter ==== #
+
+
 # ==== SECTION: transactions ctx (owned by subagent 1) ==== #
 
-def _build_transactions_ctx(user_id):
+def _build_transactions_ctx(user_id, date_from=None, date_to=None):
     return [
         {
             "date": datetime.strptime(row["date"], "%Y-%m-%d").strftime("%d %b %Y"),
@@ -137,7 +195,9 @@ def _build_transactions_ctx(user_id):
             "category_label": row["category"],
             "amount": _fmt_money(row["amount"]),
         }
-        for row in queries.get_recent_transactions(user_id)
+        for row in queries.get_recent_transactions(
+            user_id, date_from=date_from, date_to=date_to
+        )
     ]
 
 
@@ -146,8 +206,8 @@ def _build_transactions_ctx(user_id):
 
 # ==== SECTION: stats ctx (owned by subagent 2) ==== #
 
-def _build_stats_ctx(user_id):
-    stats = queries.get_summary_stats(user_id)
+def _build_stats_ctx(user_id, date_from=None, date_to=None):
+    stats = queries.get_summary_stats(user_id, date_from, date_to)
     return {
         "total_spent": _fmt_money(stats["total_spent"]),
         "txn_count": stats["transaction_count"],
@@ -160,14 +220,14 @@ def _build_stats_ctx(user_id):
 
 # ==== SECTION: categories ctx (owned by subagent 3) ==== #
 
-def _build_categories_ctx(user_id):
+def _build_categories_ctx(user_id, date_from=None, date_to=None):
     return [
         {
             "name": item["name"],
             "amount": _fmt_money(item["amount"]),
             "percent": item["pct"],
         }
-        for item in queries.get_category_breakdown(user_id)
+        for item in queries.get_category_breakdown(user_id, date_from, date_to)
     ]
 
 
@@ -185,12 +245,21 @@ def profile():
         session.clear()
         return redirect(url_for("login"))
 
+    date_from, date_to, error = _resolve_date_filter(request.args)
+    if error:
+        flash(error, "error")
+    presets = _build_presets(_today())
+
     return render_template(
         "profile.html",
         user=_build_user_ctx(user),
-        stats=_build_stats_ctx(user_id),
-        transactions=_build_transactions_ctx(user_id),
-        categories=_build_categories_ctx(user_id),
+        stats=_build_stats_ctx(user_id, date_from, date_to),
+        transactions=_build_transactions_ctx(user_id, date_from, date_to),
+        categories=_build_categories_ctx(user_id, date_from, date_to),
+        presets=presets,
+        active_filter=_active_filter(date_from, date_to, presets),
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
