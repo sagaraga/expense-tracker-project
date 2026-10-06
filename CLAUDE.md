@@ -97,7 +97,7 @@ pytest -s
 | `GET /login` | Implemented — renders `login.html` |
 | `GET /logout` | Stub — Step 3 |
 | `GET /profile` | Implemented — renders `profile.html` (hardcoded data) |
-| `GET /expenses/add` | Stub — Step 7 |
+| `GET, POST /expenses/add` | Implemented — Step 7 (renders `add_expense.html`) |
 | `GET /expenses/<id>/edit` | Stub — Step 8 |
 | `GET /expenses/<id>/delete` | Stub — Step 9 |
 

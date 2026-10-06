@@ -1,0 +1,22 @@
+select.form-input {
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: var(--paper-card);
+}
+
+.form-error {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    color: var(--danger);
+    background: var(--danger-light);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.form-actions .btn-submit { flex: 1; }
