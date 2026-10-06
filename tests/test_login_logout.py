@@ -35,7 +35,7 @@ def test_get_login_renders_form(client):
 def test_login_success_sets_session(client):
     response = login(client)
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
     assert session_user_id(client) == db.get_user_by_email(DEMO_EMAIL)["id"]
 
 
