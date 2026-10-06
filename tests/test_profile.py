@@ -79,10 +79,12 @@ def test_profile_navbar_shows_username_and_logout(client):
     assert "Sign in" not in nav
 
 
-def test_profile_with_stale_session_does_not_crash(client):
+def test_profile_with_stale_session_redirects_to_login(client):
     with client.session_transaction() as sess:
         sess["user_id"] = 9999
-    assert client.get("/profile").status_code == 200
+    resp = client.get("/profile")
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/login")
 
 
 def test_profile_template_has_no_inline_styles_or_hex():

@@ -1,12 +1,13 @@
 import os
 import sqlite3
+from datetime import datetime
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
+from database import queries
 from database.db import (
     create_user,
-    get_db,
     get_user_by_email,
     get_user_by_id,
     init_db,
@@ -111,49 +112,85 @@ def logout():
     return redirect(url_for("landing"))
 
 
+# ------------------------------------------------------------------ #
+# Profile page                                                        #
+# ------------------------------------------------------------------ #
+
+def _fmt_money(amount):
+    return f"₹{amount:,.2f}"
+
+
+def _build_user_ctx(user):
+    parts = user["name"].split()
+    initials = "".join(p[0] for p in parts[:2]).upper() or "?"
+    return {**user, "initials": initials}
+
+
+# ==== SECTION: transactions ctx (owned by subagent 1) ==== #
+
+def _build_transactions_ctx(user_id):
+    return [
+        {
+            "date": datetime.strptime(row["date"], "%Y-%m-%d").strftime("%d %b %Y"),
+            "description": row["description"],
+            "category": row["category"].lower(),
+            "category_label": row["category"],
+            "amount": _fmt_money(row["amount"]),
+        }
+        for row in queries.get_recent_transactions(user_id)
+    ]
+
+
+# ==== END SECTION: transactions ctx ==== #
+
+
+# ==== SECTION: stats ctx (owned by subagent 2) ==== #
+
+def _build_stats_ctx(user_id):
+    stats = queries.get_summary_stats(user_id)
+    return {
+        "total_spent": _fmt_money(stats["total_spent"]),
+        "txn_count": stats["transaction_count"],
+        "top_category": stats["top_category"],
+    }
+
+
+# ==== END SECTION: stats ctx ==== #
+
+
+# ==== SECTION: categories ctx (owned by subagent 3) ==== #
+
+def _build_categories_ctx(user_id):
+    return [
+        {
+            "name": item["name"],
+            "amount": _fmt_money(item["amount"]),
+            "percent": item["pct"],
+        }
+        for item in queries.get_category_breakdown(user_id)
+    ]
+
+
+# ==== END SECTION: categories ctx ==== #
+
+
 @app.route("/profile")
 def profile():
-    if not session.get("user_id"):
+    user_id = session.get("user_id")
+    if not user_id:
         return redirect(url_for("login"))
 
-    # Hardcoded placeholder data — Step 5 replaces this with DB queries.
-    user = {
-        "name": "Demo User",
-        "email": "demo@spendly.com",
-        "initials": "DU",
-        "member_since": "January 2026",
-    }
-    stats = {
-        "total_spent": "₹5,000",
-        "txn_count": 5,
-        "top_category": "Bills",
-    }
-    transactions = [
-        {"date": "05 Oct 2026", "description": "Lunch at cafe",
-         "category": "food", "category_label": "Food", "amount": "₹450"},
-        {"date": "04 Oct 2026", "description": "Metro card top-up",
-         "category": "transport", "category_label": "Transport", "amount": "₹500"},
-        {"date": "03 Oct 2026", "description": "Electricity bill",
-         "category": "bills", "category_label": "Bills", "amount": "₹1,750"},
-        {"date": "02 Oct 2026", "description": "T-shirt",
-         "category": "shopping", "category_label": "Shopping", "amount": "₹1,250"},
-        {"date": "01 Oct 2026", "description": "Groceries",
-         "category": "food", "category_label": "Food", "amount": "₹1,050"},
-    ]
-    # percent must be a multiple of 5 (0-100): profile.css only defines
-    # width classes in steps of 5 (.pct-0 ... .pct-100).
-    categories = [
-        {"name": "Bills", "amount": "₹1,750", "percent": 35},
-        {"name": "Food", "amount": "₹1,500", "percent": 30},
-        {"name": "Shopping", "amount": "₹1,250", "percent": 25},
-        {"name": "Transport", "amount": "₹500", "percent": 10},
-    ]
+    user = queries.get_user_by_id(user_id)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
     return render_template(
         "profile.html",
-        user=user,
-        stats=stats,
-        transactions=transactions,
-        categories=categories,
+        user=_build_user_ctx(user),
+        stats=_build_stats_ctx(user_id),
+        transactions=_build_transactions_ctx(user_id),
+        categories=_build_categories_ctx(user_id),
     )
 
 
