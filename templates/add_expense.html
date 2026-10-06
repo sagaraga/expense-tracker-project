@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Add expense — Spendly{% endblock %}
+{% set editing = is_edit|default(false) %}
+{% block title %}{{ "Edit expense" if editing else "Add expense" }} — Spendly{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/add_expense.css') }}">
@@ -12,8 +13,8 @@
     <div class="auth-container">
 
         <div class="auth-header">
-            <h1 class="auth-title">Add expense</h1>
-            <p class="auth-subtitle">Record what you spent</p>
+            <h1 class="auth-title">{{ "Edit expense" if editing else "Add expense" }}</h1>
+            <p class="auth-subtitle">{{ "Update the details below" if editing else "Record what you spent" }}</p>
         </div>
 
         <div class="auth-card">
@@ -21,7 +22,7 @@
             <div class="form-error" role="alert">{{ error }}</div>
             {% endif %}
 
-            <form method="POST" action="{{ url_for('add_expense') }}">
+            <form method="POST" action="{{ form_action|default(url_for('add_expense')) }}">
                 <div class="form-group">
                     <label for="amount">Amount (₹)</label>
                     <input type="number" id="amount" name="amount"
@@ -52,7 +53,7 @@
                            value="{{ form.get('description', '') }}">
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn-submit">Add expense</button>
+                    <button type="submit" class="btn-submit">{{ "Save changes" if editing else "Add expense" }}</button>
                     <a href="{{ url_for('profile') }}" class="btn btn-ghost">Cancel</a>
                 </div>
             </form>

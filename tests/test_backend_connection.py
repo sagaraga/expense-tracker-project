@@ -42,7 +42,7 @@ class TestTransactions:
         rows = queries.get_recent_transactions(seed_user_id)
         assert len(rows) == 8
         for row in rows:
-            assert set(row) == {"date", "description", "category", "amount"}
+            assert set(row) == {"id", "date", "description", "category", "amount"}
 
     def test_newest_first(self, seed_user_id):
         dates = [r["date"] for r in queries.get_recent_transactions(seed_user_id)]

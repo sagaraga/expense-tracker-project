@@ -102,6 +102,9 @@
 .txn-table th { color: var(--ink-muted); font-weight: 500; }
 .txn-table td { color: var(--ink-soft); }
 .txn-table .txn-amount { text-align: right; color: var(--ink); font-weight: 500; }
+.txn-table .txn-actions { text-align: right; }
+.txn-edit { color: var(--ink-soft); text-decoration: underline; }
+.txn-edit:hover { color: var(--ink); }
 
 .badge {
     display: inline-block;
