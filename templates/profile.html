@@ -19,8 +19,8 @@
             </div>
         </div>
 
-        {% for message in get_flashed_messages() %}
-        <p class="filter-error" role="alert">{{ message }}</p>
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+        <p class="{{ 'flash-success' if category == 'success' else 'filter-error' }}" role="alert">{{ message }}</p>
         {% endfor %}
 
         <div class="filter-bar">
@@ -59,7 +59,10 @@
         </div>
 
         <div class="profile-panel">
-            <h2 class="profile-panel-title">Recent transactions</h2>
+            <div class="profile-panel-header">
+                <h2 class="profile-panel-title">Recent transactions</h2>
+                <a href="{{ url_for('add_expense') }}" class="btn btn-primary">Add expense</a>
+            </div>
             {% if transactions %}
             <div class="txn-table-wrap">
                 <table class="txn-table">

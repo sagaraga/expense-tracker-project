@@ -1,4 +1,4 @@
-"""Read-only query helpers for the profile page.
+"""Query helpers for the profile page and expense entry.
 
 Each helper opens its own connection via get_db() and closes it before
 returning. No Flask imports here.
@@ -6,6 +6,10 @@ returning. No Flask imports here.
 from datetime import datetime
 
 from database.db import get_db
+
+EXPENSE_CATEGORIES = [
+    "Food", "Transport", "Bills", "Health", "Entertainment", "Shopping", "Other",
+]
 
 
 def _date_clause(date_from, date_to):
@@ -135,3 +139,23 @@ def get_category_breakdown(user_id, date_from=None, date_to=None):
 
 
 # ==== END SECTION: categories ==== #
+
+
+# ==== SECTION: create expense ==== #
+
+def create_expense(user_id, amount, category, date, description):
+    """Insert one expense for user_id and return its new row id."""
+    conn = get_db()
+    try:
+        with conn:
+            cursor = conn.execute(
+                "INSERT INTO expenses (user_id, amount, category, date, description) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (user_id, amount, category, date, description),
+            )
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+# ==== END SECTION: create expense ==== #
