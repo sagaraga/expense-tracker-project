@@ -290,10 +290,10 @@ class TestSecurity:
 
 
 class TestStubsUntouched:
-    def test_edit_stub_unchanged(self, client):
+    def test_edit_requires_login(self, client):
         response = client.get("/expenses/1/edit")
-        assert response.status_code == 200
-        assert "Step 8" in response.get_data(as_text=True)
+        assert response.status_code == 302
+        assert "/login" in response.headers["Location"]
 
     def test_delete_stub_unchanged(self, client):
         response = client.get("/expenses/1/delete")

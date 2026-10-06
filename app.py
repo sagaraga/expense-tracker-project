@@ -5,11 +5,16 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
 from database import queries
-from database.queries import EXPENSE_CATEGORIES, create_expense
+from database.queries import (
+    EXPENSE_CATEGORIES,
+    create_expense,
+    get_expense,
+    update_expense,
+)
 from database.db import (
     create_user,
     get_user_by_email,
@@ -191,6 +196,7 @@ def _active_filter(date_from, date_to, presets):
 def _build_transactions_ctx(user_id, date_from=None, date_to=None):
     return [
         {
+            "id": row["id"],
             "date": datetime.strptime(row["date"], "%Y-%m-%d").strftime("%d %b %Y"),
             "description": row["description"],
             "category": row["category"].lower(),
@@ -316,6 +322,8 @@ def add_expense():
             "add_expense.html",
             categories=EXPENSE_CATEGORIES,
             form={"date": _today().isoformat()},
+            is_edit=False,
+            form_action=url_for("add_expense"),
         )
 
     clean, error = _validate_expense_form(request.form)
@@ -325,6 +333,8 @@ def add_expense():
             categories=EXPENSE_CATEGORIES,
             error=error,
             form=request.form,
+            is_edit=False,
+            form_action=url_for("add_expense"),
         ), 400
 
     create_expense(
@@ -334,9 +344,50 @@ def add_expense():
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    expense = get_expense(id, user_id)
+    if expense is None:
+        abort(404)
+
+    form_action = url_for("edit_expense", id=id)
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            form={
+                "amount": f"{expense['amount']:.2f}",
+                "category": expense["category"],
+                "date": expense["date"],
+                "description": expense["description"] or "",
+            },
+            is_edit=True,
+            form_action=form_action,
+        )
+
+    clean, error = _validate_expense_form(request.form)
+    if error:
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            error=error,
+            form=request.form,
+            is_edit=True,
+            form_action=form_action,
+        ), 400
+
+    updated = update_expense(
+        id, user_id, clean["amount"], clean["category"], clean["date"], clean["description"]
+    )
+    if not updated:
+        abort(404)
+    flash("Expense updated.", "success")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")
