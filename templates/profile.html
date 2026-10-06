@@ -19,6 +19,30 @@
             </div>
         </div>
 
+        {% for message in get_flashed_messages() %}
+        <p class="filter-error" role="alert">{{ message }}</p>
+        {% endfor %}
+
+        <div class="filter-bar">
+            <nav class="filter-presets" aria-label="Date range presets">
+                {% for p in presets %}
+                <a href="{{ url_for('profile', **p.params) }}"
+                   class="btn {{ 'btn-primary' if p.key == active_filter else 'btn-ghost' }}"
+                   {% if p.key == active_filter %}aria-current="true"{% endif %}>{{ p.label }}</a>
+                {% endfor %}
+            </nav>
+            <form class="filter-custom{% if active_filter == 'custom' %} is-active{% endif %}"
+                  method="get" action="{{ url_for('profile') }}">
+                <label class="filter-field">From
+                    <input type="date" name="date_from" value="{{ date_from or '' }}" required>
+                </label>
+                <label class="filter-field">To
+                    <input type="date" name="date_to" value="{{ date_to or '' }}" required>
+                </label>
+                <button type="submit" class="btn btn-primary">Apply</button>
+            </form>
+        </div>
+
         <div class="profile-stats">
             <div class="profile-stat">
                 <span class="profile-stat-label">Total spent</span>
@@ -36,6 +60,7 @@
 
         <div class="profile-panel">
             <h2 class="profile-panel-title">Recent transactions</h2>
+            {% if transactions %}
             <div class="txn-table-wrap">
                 <table class="txn-table">
                     <thead>
@@ -58,10 +83,14 @@
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <p class="empty-state">No transactions in this period.</p>
+            {% endif %}
         </div>
 
         <div class="profile-panel">
             <h2 class="profile-panel-title">Category breakdown</h2>
+            {% if categories %}
             <ul class="cat-list">
                 {% for c in categories %}
                 <li class="cat-row">
@@ -75,6 +104,9 @@
                 </li>
                 {% endfor %}
             </ul>
+            {% else %}
+            <p class="empty-state">No spending in this period.</p>
+            {% endif %}
         </div>
 
     </div>
